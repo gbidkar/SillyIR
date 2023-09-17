@@ -1,6 +1,5 @@
 import aiofiles
 import aiohttp
-import asyncio
 import binascii
 from distutils.version import StrictVersion
 import json
@@ -14,6 +13,7 @@ from aiohttp import ClientSession
 from homeassistant.const import (
     ATTR_FRIENDLY_NAME, __version__ as current_ha_version)
 import homeassistant.helpers.config_validation as cv
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,86 +42,16 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
-async def async_setup(hass, config):
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the SillyIR component."""
     conf = config.get(DOMAIN)
 
     if conf is None:
         return True
 
-    check_updates = conf[CONF_CHECK_UPDATES]
-    update_branch = conf[CONF_UPDATE_BRANCH]
-
-    async def _check_updates(service):
-        await _update(hass, update_branch)
-
-    async def _update_component(service):
-        await _update(hass, update_branch, True)
-
-    hass.services.async_register(DOMAIN, 'check_updates', _check_updates)
-    hass.services.async_register(DOMAIN, 'update_component', _update_component)
-
-    if check_updates:
-        await _update(hass, update_branch, False, False)
-
     return True
 
-async def _update(hass, branch, do_update=False, notify_if_latest=True):
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(MANIFEST_URL.format(branch)) as response:
-                if response.status == 200:
-                    
-                    data = await response.json(content_type='text/plain')
-                    min_ha_version = data['homeassistant']
-                    last_version = data['updater']['version']
-                    release_notes = data['updater']['releaseNotes']
-
-                    if StrictVersion(last_version) <= StrictVersion(VERSION):
-                        if notify_if_latest:
-                            hass.components.persistent_notification.async_create(
-                                "You're already using the latest version!", 
-                                title='SillyIR')
-                        return
-
-                    if StrictVersion(current_ha_version) < StrictVersion(min_ha_version):
-                        hass.components.persistent_notification.async_create(
-                            "There is a new version of SillyIR integration, but it is **incompatible** "
-                            "with your system. Please first update Home Assistant.", title='SillyIR')
-                        return
-
-                    if do_update is False:
-                        hass.components.persistent_notification.async_create(
-                            "A new version of SillyIR integration is available ({}). "
-                            "Call the ``sillyir.update_component`` service to update "
-                            "the integration. \n\n **Release notes:** \n{}"
-                            .format(last_version, release_notes), title='SillyIR')
-                        return
-
-                    # Begin update
-                    files = data['updater']['files']
-                    has_errors = False
-
-                    for file in files:
-                        try:
-                            source = REMOTE_BASE_URL.format(branch) + file
-                            dest = os.path.join(COMPONENT_ABS_DIR, file)
-                            os.makedirs(os.path.dirname(dest), exist_ok=True)
-                            await Helper.downloader(source, dest)
-                        except Exception:
-                            has_errors = True
-                            _LOGGER.error("Error updating %s. Please update the file manually.", file)
-
-                    if has_errors:
-                        hass.components.persistent_notification.async_create(
-                            "There was an error updating one or more files of SillyIR. "
-                            "Please check the logs for more information.", title='SillyIR')
-                    else:
-                        hass.components.persistent_notification.async_create(
-                            "Successfully updated to {}. Please restart Home Assistant."
-                            .format(last_version), title='SillyIR')
-    except Exception:
-       _LOGGER.error("An error occurred while checking for updates.")
 
 class Helper():
     @staticmethod
