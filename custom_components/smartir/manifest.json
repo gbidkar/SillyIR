@@ -6,5 +6,5 @@
   "codeowners": ["@gbidkar"],
   "requirements": ["aiofiles>=0.6.0"],
   "homeassistant": "2022.4.0",
-  "version": "0.0.1",
+  "version": "0.0.1"
 }
