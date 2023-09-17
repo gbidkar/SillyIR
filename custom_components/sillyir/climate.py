@@ -23,7 +23,7 @@ from .controller import get_controller
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_NAME = "SmartIR Climate"
+DEFAULT_NAME = "SillyIR Climate"
 DEFAULT_DELAY = 0.5
 
 CONF_UNIQUE_ID = 'unique_id'
@@ -71,7 +71,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
         try:
             codes_source = ("https://raw.githubusercontent.com/"
-                            "smartHomeHub/SmartIR/master/"
+                            "gbidkar/SillyIR/master/"
                             "codes/climate/{}.json")
 
             await Helper.downloader(codes_source.format(device_code), device_json_path)
@@ -91,13 +91,13 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             _LOGGER.error("The device Json file is invalid")
             return
 
-    async_add_entities([SmartIRClimate(
+    async_add_entities([SillyIRClimate(
         hass, config, device_data
     )])
 
-class SmartIRClimate(ClimateEntity, RestoreEntity):
+class SillyIRClimate(ClimateEntity, RestoreEntity):
     def __init__(self, hass, config, device_data):
-        _LOGGER.debug(f"SmartIRClimate init started for device {config.get(CONF_NAME)} supported models {device_data['supportedModels']}")
+        _LOGGER.debug(f"SillyIRClimate init started for device {config.get(CONF_NAME)} supported models {device_data['supportedModels']}")
         self.hass = hass
         self._unique_id = config.get(CONF_UNIQUE_ID)
         self._name = config.get(CONF_NAME)
