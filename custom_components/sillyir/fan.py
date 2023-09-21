@@ -8,8 +8,8 @@ import voluptuous as vol
 from homeassistant.components.fan import (
     FanEntity, PLATFORM_SCHEMA,
     DIRECTION_REVERSE, DIRECTION_FORWARD,
-    SUPPORT_SET_SPEED, SUPPORT_DIRECTION, SUPPORT_OSCILLATE, 
-    ATTR_OSCILLATING )
+    SUPPORT_SET_SPEED, SUPPORT_DIRECTION, SUPPORT_OSCILLATE,
+    ATTR_OSCILLATING)
 from homeassistant.const import (
     CONF_NAME, STATE_OFF, STATE_ON, STATE_UNKNOWN)
 from homeassistant.core import callback
@@ -44,6 +44,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_DELAY, default=DEFAULT_DELAY): cv.string,
     vol.Optional(CONF_POWER_SENSOR): cv.entity_id
 })
+
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the IR Fan platform."""
@@ -85,6 +86,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         hass, config, device_data
     )])
 
+
 class SillyIRFan(FanEntity, RestoreEntity):
     def __init__(self, hass, config, device_data):
         self.hass = hass
@@ -101,7 +103,7 @@ class SillyIRFan(FanEntity, RestoreEntity):
         self._commands_encoding = device_data['commandsEncoding']
         self._speed_list = device_data['speed']
         self._commands = device_data['commands']
-        
+
         self._speed = SPEED_OFF
         self._direction = None
         self._last_on_speed = None
@@ -109,23 +111,22 @@ class SillyIRFan(FanEntity, RestoreEntity):
         self._support_flags = SUPPORT_SET_SPEED
 
         if (DIRECTION_REVERSE in self._commands and \
-            DIRECTION_FORWARD in self._commands):
+                DIRECTION_FORWARD in self._commands):
             self._direction = DIRECTION_REVERSE
             self._support_flags = (
-                self._support_flags | SUPPORT_DIRECTION)
+                    self._support_flags | SUPPORT_DIRECTION)
         if ('oscillate' in self._commands):
             self._oscillating = False
             self._support_flags = (
-                self._support_flags | SUPPORT_OSCILLATE)
-
+                    self._support_flags | SUPPORT_OSCILLATE)
 
         self._temp_lock = asyncio.Lock()
         self._on_by_remote = False
 
-        #Init the IR/RF controller
+        # Init the IR/RF controller
         self._controller = get_controller(
             self.hass,
-            self._supported_controller, 
+            self._supported_controller,
             self._commands_encoding,
             self._controller_data,
             self._delay)
@@ -133,24 +134,24 @@ class SillyIRFan(FanEntity, RestoreEntity):
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
-    
+
         last_state = await self.async_get_last_state()
 
         if last_state is not None:
             if 'speed' in last_state.attributes:
                 self._speed = last_state.attributes['speed']
 
-            #If _direction has a value the direction controls appears 
-            #in UI even if SUPPORT_DIRECTION is not provided in the flags
+            # If _direction has a value the direction controls appears
+            # in UI even if SUPPORT_DIRECTION is not provided in the flags
             if ('direction' in last_state.attributes and \
-                self._support_flags & SUPPORT_DIRECTION):
+                    self._support_flags & SUPPORT_DIRECTION):
                 self._direction = last_state.attributes['direction']
 
             if 'last_on_speed' in last_state.attributes:
                 self._last_on_speed = last_state.attributes['last_on_speed']
 
             if self._power_sensor:
-                async_track_state_change(self.hass, self._power_sensor, 
+                async_track_state_change(self.hass, self._power_sensor,
                                          self._async_power_sensor_changed)
 
     @property
@@ -167,7 +168,7 @@ class SillyIRFan(FanEntity, RestoreEntity):
     def state(self):
         """Return the current state."""
         if (self._on_by_remote or \
-            self._speed != SPEED_OFF):
+                self._speed != SPEED_OFF):
             return STATE_ON
         return SPEED_OFF
 
@@ -219,7 +220,7 @@ class SillyIRFan(FanEntity, RestoreEntity):
     async def async_set_percentage(self, percentage: int):
         """Set the desired speed for the fan."""
         if (percentage == 0):
-             self._speed = SPEED_OFF
+            self._speed = SPEED_OFF
         else:
             self._speed = percentage_to_ordered_list_item(
                 self._speed_list, percentage)
@@ -228,14 +229,14 @@ class SillyIRFan(FanEntity, RestoreEntity):
             self._last_on_speed = self._speed
 
         await self.send_command()
-        await self.async_update_ha_state()
+        self.async_write_ha_state()
 
     async def async_oscillate(self, oscillating: bool) -> None:
         """Set oscillation of the fan."""
         self._oscillating = oscillating
 
         await self.send_command()
-        await self.async_update_ha_state()
+        self.async_write_ha_state()
 
     async def async_set_direction(self, direction: str):
         """Set the direction of the fan"""
@@ -244,7 +245,7 @@ class SillyIRFan(FanEntity, RestoreEntity):
         if not self._speed.lower() == SPEED_OFF:
             await self.send_command()
 
-        await self.async_update_ha_state()
+        self.async_write_ha_state()
 
     async def async_turn_on(self, percentage: int = None, **kwargs):
         """Turn on the fan."""
@@ -270,7 +271,7 @@ class SillyIRFan(FanEntity, RestoreEntity):
             elif oscillating:
                 command = self._commands['oscillate']
             else:
-                command = self._commands[direction][speed] 
+                command = self._commands[direction][speed]
 
             try:
                 await self._controller.send(command)
@@ -288,10 +289,10 @@ class SillyIRFan(FanEntity, RestoreEntity):
         if new_state.state == STATE_ON and self._speed == SPEED_OFF:
             self._on_by_remote = True
             self._speed = None
-            await self.async_update_ha_state()
+            self.async_write_ha_state()
 
         if new_state.state == STATE_OFF:
             self._on_by_remote = False
             if self._speed != SPEED_OFF:
                 self._speed = SPEED_OFF
-            await self.async_update_ha_state()
+            self.async_write_ha_state()
