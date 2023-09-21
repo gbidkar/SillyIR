@@ -178,6 +178,7 @@ Contributing to your own code files is welcome. However, we do not accept incomp
 | Code | Supported Models | Controller |
 | ------------- | -------------------------- | ------------- |
 [1100](../codes/media_player/1100.json)|42C3530D|Broadlink
+[1101](../codes/media_player/1101.json)|40LV833G|Broadlink
 
 #### Yamaha
 | Code | Supported Models | Controller |
