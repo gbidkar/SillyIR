@@ -13,7 +13,7 @@ from homeassistant.components.climate.const import (
     SUPPORT_SWING_MODE, HVAC_MODES, ATTR_HVAC_MODE)
 from homeassistant.const import (
     CONF_NAME, STATE_ON, STATE_OFF, STATE_UNKNOWN, STATE_UNAVAILABLE, ATTR_TEMPERATURE,
-    PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE)
+    PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE, UnitOfTemperature)
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_state_change
 import homeassistant.helpers.config_validation as cv
@@ -133,7 +133,11 @@ class SillyIRClimate(ClimateEntity, RestoreEntity):
         self._current_temperature = None
         self._current_humidity = None
 
-        self._unit = hass.config.units.temperature_unit
+        self._temperature_unit = hass.config.units.temperature_unit
+
+        if self._is_using_fahrenheit():
+            self._min_temperature = self._celsius_to_fahrenheit(self._min_temperature)
+            self._max_temperature = self._celsius_to_fahrenheit(self._max_temperature)
         
         #Supported features
         self._support_flags = SUPPORT_FLAGS
@@ -211,7 +215,7 @@ class SillyIRClimate(ClimateEntity, RestoreEntity):
     @property
     def temperature_unit(self):
         """Return the unit of measurement."""
-        return self._unit
+        return self._temperature_unit
 
     @property
     def min_temp(self):
@@ -366,6 +370,8 @@ class SillyIRClimate(ClimateEntity, RestoreEntity):
                 fan_mode = self._current_fan_mode
                 swing_mode = self._current_swing_mode
                 target_temperature = '{0:g}'.format(self._target_temperature)
+                if self._is_using_fahrenheit():
+                    target_temperature = '{0:g}'.format(self._fahrenheit_to_celsius(self._target_temperature))
 
                 if operation_mode.lower() == HVAC_MODE_OFF:
                     await self._controller.send(self._commands['off'])
@@ -384,7 +390,19 @@ class SillyIRClimate(ClimateEntity, RestoreEntity):
 
             except Exception as e:
                 _LOGGER.exception(e)
-            
+
+    def _is_using_fahrenheit(self):
+        """Check if current configured temperature unit is Fahrenheit"""
+        return self._temperature_unit == UnitOfTemperature.FAHRENHEIT
+
+    @staticmethod
+    def _celsius_to_fahrenheit(temperature):
+        return round(temperature * 9 / 5) + 32
+
+    @staticmethod
+    def _fahrenheit_to_celsius(temperature):
+        return round((temperature - 32) * 5 / 9)
+
     async def _async_temp_sensor_changed(self, entity_id, old_state, new_state):
         """Handle temperature sensor changes."""
         if new_state is None:
